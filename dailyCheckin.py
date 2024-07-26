@@ -2,6 +2,8 @@ import requests
 import time
 import datetime
 import subprocess
+import os
+from dotenv import load_dotenv
 
 
 def log_request(message):
@@ -49,8 +51,11 @@ def diem_danh(apiUrl, apiPayload, apiHeaders):
 
 
 def main():
+    load_dotenv()
+    act_id = os.getenv('ACT_ID')
+
     url = 'https://sg-hk4e-api.hoyolab.com/event/sol/sign?lang=vi-vn'
-    payload = {"act_id": "e202102251931481"}
+    payload = {"act_id": act_id}
     headers = {
         "Content-Type": "application/json;charset=UTF-8",
         "Cookie": "_MHYUUID=bc03fd76-961d-43ba-820f-07c50dfa6907; HYV_LOGIN_PLATFORM_OPTIONAL_AGREEMENT={%22content%22:[]}; DEVICEFP_SEED_ID=4aef3a34346f38a4; DEVICEFP_SEED_TIME=1695879344648; account_mid_v2=10peame57f_hy; account_id_v2=206741532; ltmid_v2=10peame57f_hy; ltuid_v2=206741532; hoyolab_color_scheme=system; cookie_token_v2=v2_CAQSDGNlMXRidXdiMDB6axokYmMwM2ZkNzYtOTYxZC00M2JhLTgyMGYtMDdjNTBkZmE2OTA3ILfU37AGKNDCpZUBMJzAymJCC2hrNGVfZ2xvYmFs; ltoken_v2=v2_CAISDGNlMXRidXdiMDB6axokYmMwM2ZkNzYtOTYxZC00M2JhLTgyMGYtMDdjNTBkZmE2OTA3ILfU37AGKO7i6LkGMJzAymJCC2hrNGVfZ2xvYmFs; HYV_LOGIN_PLATFORM_LOAD_TIMEOUT={}; mi18nLang=vi-vn; DEVICEFP=38d7f1df14e66; HYV_LOGIN_PLATFORM_TRACKING_MAP={%22sourceValue%22:%2276%22}; HYV_LOGIN_PLATFORM_LIFECYCLE_ID={%22value%22:%225ab8d17d-933a-438e-be83-2a54089c7073%22}",
