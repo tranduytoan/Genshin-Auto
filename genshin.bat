@@ -1,8 +1,6 @@
 @echo off
 
-@REM Modify this path to your Genshin Impact path
-@REM Example: set APP_PATH="D:\Games\Genshin Impact\GenshinImpact.exe"
-set APP_PATH=""
+call loadenv.bat
 
 @REM Random color for cmd
 Set /a num=(%Random% %%9)+1
