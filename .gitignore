@@ -1,2 +1,5 @@
-venv/
+daycheck.txt
+log.txt
+
 .idea/
+venv/
