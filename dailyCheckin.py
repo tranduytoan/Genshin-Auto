@@ -53,20 +53,20 @@ def diem_danh(apiUrl, apiPayload, apiHeaders):
 def main():
     load_dotenv()
     act_id = os.getenv('ACT_ID')
+    cookie = os.getenv('COOKIE')
+    apiUrl = os.getenv('API_URL')
 
-    url = 'https://sg-hk4e-api.hoyolab.com/event/sol/sign?lang=vi-vn'
+    url = apiUrl
     payload = {"act_id": act_id}
     headers = {
         "Content-Type": "application/json;charset=UTF-8",
-        "Cookie": "_MHYUUID=bc03fd76-961d-43ba-820f-07c50dfa6907; HYV_LOGIN_PLATFORM_OPTIONAL_AGREEMENT={%22content%22:[]}; DEVICEFP_SEED_ID=4aef3a34346f38a4; DEVICEFP_SEED_TIME=1695879344648; account_mid_v2=10peame57f_hy; account_id_v2=206741532; ltmid_v2=10peame57f_hy; ltuid_v2=206741532; hoyolab_color_scheme=system; cookie_token_v2=v2_CAQSDGNlMXRidXdiMDB6axokYmMwM2ZkNzYtOTYxZC00M2JhLTgyMGYtMDdjNTBkZmE2OTA3ILfU37AGKNDCpZUBMJzAymJCC2hrNGVfZ2xvYmFs; ltoken_v2=v2_CAISDGNlMXRidXdiMDB6axokYmMwM2ZkNzYtOTYxZC00M2JhLTgyMGYtMDdjNTBkZmE2OTA3ILfU37AGKO7i6LkGMJzAymJCC2hrNGVfZ2xvYmFs; HYV_LOGIN_PLATFORM_LOAD_TIMEOUT={}; mi18nLang=vi-vn; DEVICEFP=38d7f1df14e66; HYV_LOGIN_PLATFORM_TRACKING_MAP={%22sourceValue%22:%2276%22}; HYV_LOGIN_PLATFORM_LIFECYCLE_ID={%22value%22:%225ab8d17d-933a-438e-be83-2a54089c7073%22}",
+        "Cookie": cookie,
         "Origin": "https://act.hoyolab.com",
         "Priority": "u=1, i",
         "Referer": "https://act.hoyolab.com/",
         "Sec-Ch-Ua": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"",
         "Sec-Ch-Ua-Platform": "\"Windows\"",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "X-Rpc-Device_id": "bc03fd76-961d-43ba-820f-07c50dfa6907",
-        "X-Rpc-Platform": "4"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
     diem_danh(url, payload, headers)
 
