@@ -38,7 +38,7 @@ def diem_danh(apiUrl, apiPayload, apiHeaders):
         log_request("\tResponse:\n\t\t" + response.text)
         message = response.json()['message']
         print(message)
-        batch_command = "type res\ok.txt & echo."
+        batch_command = "type res\\ok.txt & echo."
         subprocess.run(batch_command, shell=True)
 
         # update daycheck.txt

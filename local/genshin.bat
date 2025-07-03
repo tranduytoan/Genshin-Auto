@@ -1,7 +1,7 @@
 @echo off
 
 call loadenv.bat
-call ./venv/Scripts/activate
+call ../venv/Scripts/activate
 
 @REM Random color for cmd
 Set /a num=(%Random% %%9)+1
