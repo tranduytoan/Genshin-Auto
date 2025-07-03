@@ -1,49 +1,78 @@
-## A Python script for auto check in *_Genshin Impact Daily Check-in_*
-### **Features**:
-A simple Python script to auto check in `Genshin Impact Daily Check-in` every time you run the game. It'll check if you have already checked in today or not. If not, it'll check in for you.
-### How it works:
-- The file `dailyCheckin.py` is the main program, it'll check in for you by sending a POST request to the server via the API, so you need to provide some information to the program (more details [here](#how-to-use)).
-- The file `daycheck.py` is a module that contains the function to check if you have already checked in today or not.
-- The file `genshin.bat` is a batch file that runs the program `daycheck.py` to check if you have already checked in today or not, then run the program `dailyCheckin.py` to check in for you and finally run the game `Genshin Impact`. You can add a shortcut of this file to your Desktop to run the game and check in at the same time.
-### Requirements:
-Up to now, I have only developed the program for my own use. Therefore, this program is known to work stably in:
-- Windows 11
-- Python 3.10
-- Genshin server Asia account (other servers will probably need a different login API so won't work, if you know the api for your server, replace it in the `.env` file). I make no promises but will support other servers later if possible.
-### How to use:
-1. Clone this repository use `git clone` or download the zip file.
-2. Install the required packages (***at the first time only***) use:
-```bash
-  python -m venv venv
-  .\venv\Scripts\activate
-  pip install -r requirements.txt
-```
-3. Modify value of `APP_PATH`, `ACT_ID` and `COOKIE` in `.env` file (More instructions [here](#get-your-act_id-and-cookie)).
-4. Add shortcut of `genshin.bat` to Desktop (optional).
-5. Run `genshin.bat` to play Genshin Impact and auto check in
-6. You can check the log file `log.txt` to see the history of check-in.
+# Genshin Auto Daily Check-in
 
-### Another way to use:
-- ***Steps 1 to 3 in the instructions above are required***
-- You can also simplify the program (skip `genshin.bat`, skip the cmd window with a Vietnamese interface that you may not understand,...) by running the dailyCheckin.py program directly (_don't spam the program, it may be detected as a bot and banned_)
-- With this method, you can also check in automatically with the [Task Scheduler](https://en.wikipedia.org/wiki/Windows_Task_Scheduler) through a `.bat` file running the python command `python dailyCheckin.py` (it is recommended to set a random delay time).
+Tự động điểm danh hàng ngày cho Genshin Impact thông qua GitHub Actions hoặc chạy local.
 
-### Get your `ACT_ID` and `COOKIE`:
-1. `ACT_ID`: 
-    - _Use your browser_.
-    - Go to [Hoyolab](https://www.hoyolab.com/genshin/).
-    - Login with your Genshin account.
-    - Go to check-in page (you may know that page).
-    - Check the URL, it should look like this: \
-      `https://act.hoyolab.com/ys/event/signin-sea-v3/index.html?act_id=xxxxxxxxxxxxxxxx&.........`.
-    - Where `xxxxxxxxxxxxxxxx` is your `ACT_ID`.
-2. `COOKIE`:
-   - At the same page, press `F12` to open the Developer Tools.
-   - Go to `Network` tab.
-   - Refresh the page.
-   - Click on the first request (should be `signin`).
-   - Go to `Headers` tab.
-   - Find the `cookie` field.
-   - Copy the value of `cookie` field.
-   - Paste it to the `.env` file.
-   - **Note: Don't share your `COOKIE` with anyone.**
+## ✨ Tính năng
+
+- 🤖 Tự động điểm danh hàng ngày
+- ☁️ Chạy trên GitHub Actions (không cần máy tính)
+- 🖥️ Hỗ trợ chạy local trên Windows
+- 📊 Lưu log chi tiết trên GitHub Gist
+- 🎮 Tích hợp với launcher game (chạy local)
+
+## 🚀 Cách sử dụng
+
+### Phương pháp 1: GitHub Actions (Khuyến nghị)
+
+1. **Fork repository này về tài khoản GitHub của bạn**
+
+2. **Cấu hình Secrets trong GitHub:**
+   - Vào `Settings` > `Secrets and variables` > `Actions`
+   - Thêm các secrets sau:
+     - `ACT_ID`: ID hoạt động từ URL check-in
+     - `COOKIE`: Cookie từ trình duyệt
+     - `API_URL`: `https://sg-hk4e-api.hoyolab.com/event/sol/sign?lang=vi-vn`
+     - `METRICS_TOKEN`: GitHub Personal Access Token (optional, để upload log)
+     - `GIST_ID`: ID của Gist để lưu log (optional)
+
+3. **Kích hoạt GitHub Actions:**
+   - Vào tab `Actions` > `Enable workflows`
+   - Workflow sẽ chạy tự động mỗi ngày lúc 8:00 AM UTC
+
+### Phương pháp 2: Chạy Local
+
+1. **Cài đặt:**
+   ```bash
+   git clone https://github.com/your-username/Genshin-Auto-Daily.git
+   cd Genshin-Auto-Daily
+   python -m venv venv
+   .\venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Cấu hình:**
+   - Copy `.env.example` thành `.env`
+   - Điền thông tin `ACT_ID`, `COOKIE`, `APP_PATH` vào file `.env`
+
+3. **Chạy:**
+   - Chạy trực tiếp: `python local/dailyCheckin.py`
+   - Chạy với launcher: Double-click `local/genshin.bat`
+
+## 🔧 Lấy thông tin cần thiết
+
+### ACT_ID và COOKIE:
+1. Truy cập [Hoyolab](https://www.hoyolab.com/genshin/)
+2. Đăng nhập tài khoản Genshin
+3. Vào trang check-in
+4. **ACT_ID**: Lấy từ URL `?act_id=xxxxxxxxxxxxxxxx`
+5. **COOKIE**: 
+   - Nhấn F12 > Network > Refresh trang
+   - Tìm request đầu tiên > Headers > Copy giá trị `cookie`
+
+⚠️ **Lưu ý**: Không chia sẻ COOKIE với ai khác!
+
+## 📋 Yêu cầu hệ thống
+
+- **GitHub Actions**: Không cần gì thêm
+- **Local**: Windows 10/11, Python 3.10+
+- **Server**: Hiện tại chỉ hỗ trợ server Asia
+
+## 📊 Xem log
+
+[Gist](https://gist.github.com/tranduytoan/b5179b470dcb5b3d5d573ecc0f164a61)
+
+## ⚖️ Lưu ý
+
+- Chỉ sử dụng cho mục đích cá nhân
+- Tuân thủ Terms of Service của HoYoverse
+- Không spam requests để tránh bị ban
