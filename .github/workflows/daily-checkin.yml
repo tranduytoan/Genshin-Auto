@@ -38,3 +38,10 @@ jobs:
         name: checkin-logs
         path: log.txt
         retention-days: 30
+
+    - name: Upload logs to Gist
+      if: always()
+      env:
+        GITHUB_TOKEN: ${{ secrets.METRICS_TOKEN }}
+        GIST_ID: ${{ secrets.GIST_ID }}
+      run: python actions/upload_to_gist.py
