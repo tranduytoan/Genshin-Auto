@@ -66,7 +66,7 @@ class GenshinRedeemAPI:
         for code in codes:
             try:
                 result = self.redeem_code(code)
-                if result.get('retcode') in [0, -2017, -1007]:
+                if result.get('retcode') in [0, -2017, -1007, -2001]:
                     logger.info(f"Code {code} marked as redeemed")
                     redeemed.append(code)
                 else:

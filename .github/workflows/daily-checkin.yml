@@ -17,7 +17,15 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
         
     - name: Install dependencies
       run: |
@@ -29,19 +37,12 @@ jobs:
         ACT_ID: ${{ secrets.ACT_ID }}
         COOKIE: ${{ secrets.COOKIE }}
         API_URL: ${{ secrets.API_URL }}
-      run: python checkin/daily.py
-      
-    - name: Upload logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: checkin-logs
-        path: log.txt
-        retention-days: 30
-
-    - name: Upload logs to Gist
-      if: always()
-      env:
         GITHUB_TOKEN: ${{ secrets.METRICS_TOKEN }}
         GIST_ID: ${{ secrets.GIST_ID }}
-      run: python checkin/upload_to_gist.py
+      run: |
+        cd checkin
+        python daily.py
+        
+    - name: Log completion
+      run: |
+        echo "Genshin daily check-in process completed at $(date)"
