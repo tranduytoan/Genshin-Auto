@@ -29,7 +29,7 @@ jobs:
         ACT_ID: ${{ secrets.ACT_ID }}
         COOKIE: ${{ secrets.COOKIE }}
         API_URL: ${{ secrets.API_URL }}
-      run: python actions/daily.py
+      run: python checkin/daily.py
       
     - name: Upload logs
       if: always()
@@ -44,4 +44,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.METRICS_TOKEN }}
         GIST_ID: ${{ secrets.GIST_ID }}
-      run: python actions/upload_to_gist.py
+      run: python checkin/upload_to_gist.py

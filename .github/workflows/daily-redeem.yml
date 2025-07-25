@@ -1,0 +1,49 @@
+name: Genshin Daily Redeem
+
+on:
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+
+jobs:
+  redeem-codes:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run Genshin code redemption
+      env:
+        REDEEM_UID: ${{ secrets.REDEEM_UID }}
+        REDEEM_REGION: ${{ secrets.REDEEM_REGION }}
+        COOKIE: ${{ secrets.COOKIE }}
+        GIST_ID: ${{ secrets.GIST_ID }}
+        METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
+      run: |
+        cd redeem
+        python redeem_code.py
+        
+    - name: Log completion
+      run: |
+        echo "Genshin code redemption process completed at $(date)"
