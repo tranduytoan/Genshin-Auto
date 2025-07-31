@@ -35,11 +35,11 @@ jobs:
         
     - name: Run Genshin code redemption
       env:
-        REDEEM_UID: ${{ secrets.REDEEM_UID }}
-        REDEEM_REGION: ${{ secrets.REDEEM_REGION }}
+        UID: ${{ secrets.UID }}
+        REGION: ${{ secrets.REGION }}
         COOKIE: ${{ secrets.COOKIE }}
         GIST_ID: ${{ secrets.GIST_ID }}
-        METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
       run: |
         cd redeem
         python redeem_code.py

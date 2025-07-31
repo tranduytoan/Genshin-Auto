@@ -36,8 +36,7 @@ jobs:
       env:
         ACT_ID: ${{ secrets.ACT_ID }}
         COOKIE: ${{ secrets.COOKIE }}
-        API_URL: ${{ secrets.API_URL }}
-        GITHUB_TOKEN: ${{ secrets.METRICS_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
         GIST_ID: ${{ secrets.GIST_ID }}
       run: |
         cd checkin

@@ -1,124 +1,124 @@
 import os
 import re
 import time
-import logging
 import requests
 from typing import List, Dict, Any
-from scrawl_code import scrape_genshin_codes
-from upload_to_gist import upload_redeemed_codes, get_existing_redeemed_codes
+from utils import scrape_genshin_codes, upload_redeemed_codes, get_existing_redeemed_codes
 
-# --- Config ---
-REQUIRED_ENV_VARS = ['REDEEM_UID', 'REDEEM_REGION', 'COOKIE', 'GIST_ID', 'METRICS_TOKEN']
-BASE_URL = "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey"
 
-# --- Logger setup ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-class GenshinRedeemAPI:
-    def __init__(self, uid: str, region: str, cookie: str):
-        self.uid, self.region = uid, region
-        self.session = requests.Session()
-        self.session.headers.update({
-            'Cookie': cookie,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                          '(KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
-
-    def redeem_code(self, code: str, retries: int = 3) -> Dict[str, Any]:
-        def _extract_wait_time(msg: str) -> int:
-            match = re.search(r'try again in (\d+) second', msg)
-            return int(match.group(1)) + 1 if match else 5
-
-        for attempt in range(retries + 1):
-            try:
-                logger.info(f"Redeeming code {code} (Attempt {attempt})")
-                response = self.session.get(BASE_URL, params={
+def redeem_code(session: requests.Session, uid: str, region: str, code: str) -> Dict[str, Any]:
+    """Redeem a single code with retry logic"""
+    for attempt in range(4):
+        try:
+            response = session.get(
+                "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
+                params={
                     'lang': 'en', 'game_biz': 'hk4e_global', 'sLangKey': 'en-us',
-                    'uid': self.uid, 'region': self.region, 'cdkey': code
-                }, timeout=30)
-                response.raise_for_status()
-                result = response.json()
-                retcode, msg = result.get('retcode', -1), result.get('message', 'Unknown error')
+                    'uid': uid, 'region': region, 'cdkey': code
+                },
+                timeout=30
+            )
+            
+            result = response.json() if response.ok else {'retcode': -1, 'message': 'Network error'}
+            retcode = result.get('retcode', -1)
+            
+            # Rate limit handling
+            if retcode == -2016 and attempt < 3:
+                wait_time = 5
+                if 'message' in result:
+                    match = re.search(r'try again in (\d+) second', result['message'])
+                    if match:
+                        wait_time = int(match.group(1)) + 1
+                time.sleep(wait_time)
+                continue
+            
+            return result
+            
+        except Exception as e:
+            if attempt == 3:
+                return {'retcode': -1, 'message': f'Error: {e}'}
+            time.sleep(2)
+    
+    return {'retcode': -1, 'message': 'Max retries exceeded'}
 
-                logger.info(f"Code {code} - retcode: {retcode} - {msg}")
 
-                if retcode == -2016 and attempt < retries:
-                    time.sleep(_extract_wait_time(msg))
-                    continue
-
-                return result
-
-            except requests.RequestException as e:
-                logger.warning(f"Network error: {e}")
-                if attempt == retries:
-                    return {'retcode': -1, 'message': f'Network error: {e}'}
-                time.sleep(2)
-            except Exception as e:
-                logger.error(f"Unexpected error: {e}")
-                if attempt == retries:
-                    return {'retcode': -1, 'message': f'Unexpected error: {e}'}
-
-        return {'retcode': -1, 'message': 'Max retries exceeded'}
-
-    def redeem_multiple_codes(self, codes: List[str]) -> List[str]:
-        redeemed = []
-        for code in codes:
-            try:
-                result = self.redeem_code(code)
-                if result.get('retcode') in [0, -2017, -1007, -2001]:
-                    logger.info(f"Code {code} marked as redeemed")
-                    redeemed.append(code)
-                else:
-                    logger.warning(f"Code {code} not redeemed: {result.get('retcode')}")
-                time.sleep(1)
-            except Exception as e:
-                logger.error(f"Error with code {code}: {e}")
-        return redeemed
-
-def load_env() -> Dict[str, str]:
-    env = {var: os.getenv(var) for var in REQUIRED_ENV_VARS}
-    missing = [k for k, v in env.items() if not v]
-    if missing:
-        raise ValueError(f"Missing env vars: {', '.join(missing)}")
-    logger.info("Environment variables loaded")
-    return env
-
-def filter_new_codes(all_codes: List[str], redeemed: List[str]) -> List[str]:
-    new_codes = list(set(all_codes) - set(redeemed))
-    logger.info(f"Found {len(all_codes)} total codes, {len(redeemed)} redeemed, {len(new_codes)} new")
-    return new_codes
+def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[str]) -> List[str]:
+    """Redeem multiple codes and return successfully redeemed ones"""
+    session = requests.Session()
+    session.headers.update({
+        'Cookie': cookie,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    })
+    
+    redeemed = []
+    for code in codes:
+        try:
+            result = redeem_code(session, uid, region, code)
+            retcode = result.get('retcode', -1)
+            
+            # Save codes that can never be reused
+            # 0 (success), -2017 (already claimed), -1007 (expired), -2001 (invalid)
+            if retcode in [0, -2017, -1007, -2001]:
+                redeemed.append(code)
+                print(f"Code {code}: {result.get('message', 'processed')}")
+            else:
+                print(f"Code {code} failed: {result.get('message', 'unknown error')}")
+            
+            time.sleep(1)
+        except Exception as e:
+            print(f"Error with code {code}: {e}")
+    
+    return redeemed
 
 def main():
     try:
-        logger.info("Starting redemption process")
-        env = load_env()
+        # Check environment variables
+        required_vars = ['UID', 'REGION', 'COOKIE', 'GIST_ID', 'GITHUB_TOKEN']
+        env_values = {var: os.getenv(var) for var in required_vars}
+        missing = [k for k, v in env_values.items() if not v]
+        
+        if missing:
+            print(f"Missing environment variables: {', '.join(missing)}")
+        if not all([env_values['COOKIE'], env_values['UID'], env_values['REGION']]):
+            print("Required environment variables are not set")
+            exit(1)
 
+        # Get codes
         all_codes = scrape_genshin_codes()
         if not all_codes:
-            logger.warning("No codes found")
+            print("No codes found")
             return
 
-        redeemed = get_existing_redeemed_codes()
-        new_codes = filter_new_codes(all_codes, redeemed)
+        # Filter new codes
+        redeemed_codes = get_existing_redeemed_codes()
+        new_codes = list(set(all_codes) - set(redeemed_codes))
+        
+        print(f"Found {len(all_codes)} total codes, {len(redeemed_codes)} already redeemed, {len(new_codes)} new")
+        
         if not new_codes:
-            logger.info("No new codes to redeem")
+            print("No new codes to redeem")
             return
 
-        api = GenshinRedeemAPI(env['REDEEM_UID'], env['REDEEM_REGION'], env['COOKIE'])
-        new_redeemed = api.redeem_multiple_codes(new_codes)
+        # Redeem codes
+        newly_redeemed = redeem_multiple_codes(
+            env_values['UID'], 
+            env_values['REGION'], 
+            env_values['COOKIE'], 
+            new_codes
+        )
 
-        if new_redeemed:
-            logger.info(f"Uploading {len(new_redeemed)} redeemed codes to Gist...")
-            if upload_redeemed_codes(new_redeemed):
-                logger.info("Gist updated successfully")
+        # Upload to gist
+        if newly_redeemed and all([env_values['GIST_ID'], env_values['GITHUB_TOKEN']]):
+            print(f"Uploading {len(newly_redeemed)} redeemed codes to Gist...")
+            if upload_redeemed_codes(newly_redeemed):
+                print("Gist updated successfully")
             else:
-                logger.error("Failed to update Gist")
+                print("Failed to update Gist")
         else:
-            logger.info("No codes were successfully redeemed")
+            print("No codes were successfully redeemed")
 
     except Exception as e:
-        logger.exception(f"Fatal error: {e}")
+        print(f"Fatal error: {e}")
         raise
 
 if __name__ == '__main__':
