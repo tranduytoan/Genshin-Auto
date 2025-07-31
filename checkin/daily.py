@@ -2,7 +2,17 @@ import requests
 import time
 import datetime
 import os
+import sys
 from dotenv import load_dotenv
+
+# Add utils directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'utils'))
+try:
+    from discord_webhook import send_discord_notification
+except ImportError:
+    def send_discord_notification(content):
+        print(f"Discord webhook not available: {content}")
+        return False
 
 
 def upload_to_gist(log_content: str, gist_id: str, token: str) -> bool:
@@ -90,6 +100,19 @@ def main():
             upload_to_gist(log_content, gist_id, github_token)
         else:
             print("Gist ID or GitHub token not found. Skipping upload.")
+        
+        # Send Discord notification if webhook URL is available
+        discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
+        if discord_webhook_url:
+            try:
+                if success:
+                    content = "✅ **Daily Check-in Completed Successfully!**\n\nYour daily rewards have been claimed."
+                else:
+                    content = "❌ **Daily Check-in Failed**\n\nPlease check your credentials and try again."
+                
+                send_discord_notification(content)
+            except Exception as e:
+                print(f"Failed to send Discord notification: {e}")
         
         exit(0 if success else 1)
             

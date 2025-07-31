@@ -2,8 +2,8 @@ name: Genshin Daily Redeem
 
 on:
   schedule:
-    # Run daily at 00:00 UTC
-    - cron: '0 0 * * *'
+    # Run every 12 hours at 00:00 and 12:00 UTC
+    - cron: '0 0,12 * * *'
   workflow_dispatch:
     # Allow manual trigger
 
@@ -40,6 +40,7 @@ jobs:
         COOKIE: ${{ secrets.COOKIE }}
         GIST_ID: ${{ secrets.GIST_ID }}
         GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         cd redeem
         python redeem_code.py
