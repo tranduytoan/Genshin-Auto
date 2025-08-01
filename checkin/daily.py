@@ -53,10 +53,14 @@ def checkin(url: str, payload: dict, headers: dict) -> tuple[bool, str]:
         result = response.json()
         message = result.get('message', 'Unknown response')
         log_content += f"\tResponse: {response.text}"
+        retcode = result.get('retcode', -1)
         
         print(message)
         print("Daily check-in completed successfully!")
-        return True, log_content
+
+        if retcode != 0 and retcode != -5003:
+            return False, log_content, message
+        return True, log_content, message
         
     except Exception as e:
         error_msg = str(e)
@@ -72,10 +76,11 @@ def main():
         load_dotenv()
         
         # Get environment variables
-        act_id = os.getenv('ACT_ID')
         cookie = os.getenv('COOKIE')
         gist_id = os.getenv('GIST_ID')
         github_token = os.getenv('GITHUB_TOKEN')
+
+        act_id = "e202102251931481"  # activity ID for daily check-in
 
         # Check required variables
         if not all([act_id, cookie]):
@@ -93,8 +98,8 @@ def main():
         }
         
         # Perform check-in
-        success, log_content = checkin(api_url, payload, headers)
-        
+        success, log_content, message = checkin(api_url, payload, headers)
+
         # Upload to Gist if available
         if gist_id and github_token:
             upload_to_gist(log_content, gist_id, github_token)
@@ -108,7 +113,7 @@ def main():
                 if success:
                     content = "✅ **Daily Check-in Completed Successfully!**\n\nYour daily rewards have been claimed."
                 else:
-                    content = "❌ **Daily Check-in Failed**\n\nPlease check your credentials and try again."
+                    content = f"❌ **Daily Check-in Failed**\n\nResponse: {message}"
                 
                 send_discord_notification(content)
             except Exception as e:

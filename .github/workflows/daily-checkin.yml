@@ -34,7 +34,6 @@ jobs:
         
     - name: Run daily check-in
       env:
-        ACT_ID: ${{ secrets.ACT_ID }}
         UID: ${{ secrets.UID }}
         REGION: ${{ secrets.REGION }}
         COOKIE: ${{ secrets.COOKIE }}

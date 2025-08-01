@@ -1,78 +1,62 @@
-# Genshin Auto Daily Check-in
+# Genshin Auto Daily
 
-Tự động điểm danh hàng ngày cho Genshin Impact thông qua GitHub Actions hoặc chạy local.
+Automated daily check-in and code redemption for Genshin Impact using GitHub Actions.
 
-## ✨ Tính năng
+## Features
 
-- 🤖 Tự động điểm danh hàng ngày
-- ☁️ Chạy trên GitHub Actions (không cần máy tính)
-- 🖥️ Hỗ trợ chạy local trên Windows
-- 📊 Lưu log chi tiết trên GitHub Gist
-- 🎮 Tích hợp với launcher game (chạy local)
+- Automated daily check-in on HoyoLab
+- Auto redeem promotion codes from Genshin Impact Wiki
+- Discord webhook notifications (Optional)
 
-## 🚀 Cách sử dụng
+## Setup
 
-### Phương pháp 1: GitHub Actions (Khuyến nghị)
+### 1. Fork this repository
 
-1. **Fork repository này về tài khoản GitHub của bạn**
+### 2. Configure Secrets
 
-2. **Cấu hình Secrets trong GitHub:**
-   - Vào `Settings` > `Secrets and variables` > `Actions`
-   - Thêm các secrets sau:
-     - `ACT_ID`: ID hoạt động từ URL check-in
-     - `COOKIE`: Cookie từ trình duyệt
-     - `API_URL`: `https://sg-hk4e-api.hoyolab.com/event/sol/sign?lang=vi-vn`
-     - `METRICS_TOKEN`: GitHub Personal Access Token (optional, để upload log)
-     - `GIST_ID`: ID của Gist để lưu log (optional)
+Add the following secrets in Settings > Secrets and variables > Actions:
 
-3. **Kích hoạt GitHub Actions:**
-   - Vào tab `Actions` > `Enable workflows`
-   - Workflow sẽ chạy tự động mỗi ngày lúc 8:00 AM UTC
+**Required:**
+- `UID` - Genshin Impact player UID
+- `REGION` - Server region (`os_usa`, `os_euro`, `os_asia`, `os_cht`) (See [Region Mapping](#region-mapping))
+- `COOKIE` - Authentication cookie:
+   - Search for how to get cookies from a website
+   - You will need to get cookies from the following 2 websites (don't forget to log in):
+     - https://www.hoyolab.com/
+     - https://genshin.hoyoverse.com/
+   - You can take more, but there are 6 required cookies: `ltmid_v2`, `ltuid_v2`, `ltoken_v2`, `account_mid_v2`, `account_id_v2`, `cookie_token_v2`
+   - Once you have at least 6 of the above cookies (or all the cookies from 2 websites if you're lazy to filter them out), you need to combine them into a single string, with individual cookies separated by a semicolon and a space [`; `]. For example: `ltuid_v2=sample1; account_id_v2=sample2`
+   - **REMEMBER: DONT SHARE YOUR COOKIES WITH ANYONE!!!!**
 
-### Phương pháp 2: Chạy Local
+**Optional:**
+- `GIST_ID` - [GitHub Gist](https://gist.github.com/) ID for log storage (you will need to create one, learn how to create a gist and get the gist id)
+- `GIST_TOKEN` - Github Personal Access Token (See [docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic)): This token requires only a single scope: gist. Avoid selecting multiple scopes to maintain security. You can set the expiration time as needed—just note that once the token expires, you'll have to generate a new one and update the GIST_TOKEN secret accordingly.
+- `DISCORD_WEBHOOK_URL` - Discord webhook URL for notifications (If you don't know what this is, see: [Discord Webhooks](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks))
+> If you do not provide the optional secrets, the workflow will still function normally, but related features (such as logging to Gist or sending Discord notifications) will be skipped.
 
-1. **Cài đặt:**
-   ```bash
-   git clone https://github.com/your-username/Genshin-Auto-Daily.git
-   cd Genshin-Auto-Daily
-   python -m venv venv
-   .\venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+### 3. Enable Actions
 
-2. **Cấu hình:**
-   - Copy `.env.example` thành `.env`
-   - Điền thông tin `ACT_ID`, `COOKIE`, `APP_PATH` vào file `.env`
+Navigate to Actions tab and enable workflows.
 
-3. **Chạy:**
-   - Chạy trực tiếp: `python local/dailyCheckin.py`
-   - Chạy với launcher: Double-click `local/genshin.bat`
+## Configuration Details
 
-## 🔧 Lấy thông tin cần thiết
+### Region Mapping
+- `os_usa` - America
+- `os_euro` - Europe  
+- `os_asia` - Asia
+- `os_cht` - TW/HK/MO
 
-### ACT_ID và COOKIE:
-1. Truy cập [Hoyolab](https://www.hoyolab.com/genshin/)
-2. Đăng nhập tài khoản Genshin
-3. Vào trang check-in
-4. **ACT_ID**: Lấy từ URL `?act_id=xxxxxxxxxxxxxxxx`
-5. **COOKIE**: 
-   - Nhấn F12 > Network > Refresh trang
-   - Tìm request đầu tiên > Headers > Copy giá trị `cookie`
+## Monitoring
 
-⚠️ **Lưu ý**: Không chia sẻ COOKIE với ai khác!
+- Check workflow status in Actions tab
+- View logs for debugging
+- Discord notifications (if configured)
+- Gist logs (if configured)
 
-## 📋 Yêu cầu hệ thống
+## Troubleshooting
 
-- **GitHub Actions**: Không cần gì thêm
-- **Local**: Windows 10/11, Python 3.10+
-- **Server**: Hiện tại chỉ hỗ trợ server Asia
+- **Actions not running**: Verify workflows are enabled and secrets are configured
+- **Check-in failures**: Update expired cookies in secrets
+- **Code redemption issues**: Check logs for specific error codes and rate limiting
 
-## 📊 Xem log
-
-[Gist](https://gist.github.com/tranduytoan/b5179b470dcb5b3d5d573ecc0f164a61)
-
-## ⚖️ Lưu ý
-
-- Chỉ sử dụng cho mục đích cá nhân
-- Tuân thủ Terms of Service của HoYoverse
-- Không spam requests để tránh bị ban
+> Note: Typically, the six cookies used will have a validity of one year. In case of login or authentication errors, you should repeat the cookie retrieval steps and update the secrets with the new values.
