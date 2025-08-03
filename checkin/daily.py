@@ -15,32 +15,6 @@ except ImportError:
         return False
 
 
-def upload_to_gist(log_content: str, gist_id: str, token: str) -> bool:
-    """Upload check-in log to gist"""
-    try:
-        headers = {
-            'Authorization': f'token {token}',
-            'Content-Type': 'application/json'
-        }
-        
-        # Get existing content
-        response = requests.get(f"https://api.github.com/gists/{gist_id}", headers=headers, timeout=30)
-        current_content = response.json().get('files', {}).get('genshin-checkin.log', {}).get('content', '') if response.ok else ''
-        
-        # Add timestamp and new content
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
-        separator = f"\n{'='*50}\n[{timestamp}] New Check-in Session\n{'='*50}\n"
-        updated_content = current_content + separator + log_content
-        
-        # Update gist
-        data = {"files": {"genshin-checkin.log": {"content": updated_content}}}
-        response = requests.patch(f"https://api.github.com/gists/{gist_id}", json=data, headers=headers, timeout=30)
-        
-        return response.ok
-    except:
-        return False
-
-
 def checkin(url: str, payload: dict, headers: dict) -> tuple[bool, str]:
     """Send check-in request"""
     time_now = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
@@ -77,8 +51,6 @@ def main():
         
         # Get environment variables
         cookie = os.getenv('COOKIE')
-        gist_id = os.getenv('GIST_ID')
-        github_token = os.getenv('GITHUB_TOKEN')
 
         act_id = "e202102251931481"  # activity ID for daily check-in
 
@@ -100,11 +72,25 @@ def main():
         # Perform check-in
         success, log_content, message = checkin(api_url, payload, headers)
 
-        # Upload to Gist if available
-        if gist_id and github_token:
-            upload_to_gist(log_content, gist_id, github_token)
-        else:
-            print("Gist ID or GitHub token not found. Skipping upload.")
+        # Write log to file (prepend new log to top) - save to parent directory for logs manager
+        log_file = "../genshin-checkin.log"
+        try:
+            new_log = log_content
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    old_content = f.read()
+                with open(log_file, 'w', encoding='utf-8') as f:
+                    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+                    header = f"\n{'='*50}\n[{timestamp}] New Check-in Session\n{'='*50}\n"
+                    f.write(header + new_log + "\n" + old_content)
+            else:
+                with open(log_file, 'w', encoding='utf-8') as f:
+                    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+                    header = f"{'='*50}\n[{timestamp}] New Check-in Session\n{'='*50}\n"
+                    f.write(header + new_log)
+            print(f"Log written to {log_file}")
+        except Exception as e:
+            print(f"Failed to write log file: {e}")
         
         # Send Discord notification if webhook URL is available
         discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')

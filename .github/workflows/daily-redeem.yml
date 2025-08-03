@@ -10,10 +10,15 @@ on:
 jobs:
   redeem-codes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
-    - name: Checkout repository
+    - name: Checkout repository (main branch)
       uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
       
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -33,18 +38,22 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    - name: Setup logs branch and fetch existing cache
+      run: |
+        cd utils
+        python logs_manager.py fetch "redeemed_codes.txt"
+        
     - name: Run Genshin code redemption
       env:
         UID: ${{ secrets.UID }}
         REGION: ${{ secrets.REGION }}
         COOKIE: ${{ secrets.COOKIE }}
-        GIST_ID: ${{ secrets.GIST_ID }}
-        GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         cd redeem
         python redeem_code.py
         
-    - name: Log completion
+    - name: Commit and push logs to logs branch
       run: |
-        echo "Genshin code redemption process completed at $(date)"
+        cd utils
+        python logs_manager.py commit "redeemed_codes.txt"

@@ -70,51 +70,31 @@ def scrape_genshin_codes() -> List[Dict[str, str]]:
     except Exception as e:
         print(f"Error scraping codes: {e}")
         return []
-    
-
-def get_env_vars() -> tuple[bool, str, str]:
-    gist_id = os.getenv('GIST_ID')
-    token = os.getenv('GITHUB_TOKEN')
-    
-    if not gist_id or not token:
-        return False, "", ""
-
-    return True, gist_id, token
 
 
 def get_existing_redeemed_codes() -> List[str]:
     try:
-        success, gist_id, token = get_env_vars()
-        if not success:
-            return []
-        
-        headers = {'Authorization': f'token {token}'}
-        response = requests.get(f"https://api.github.com/gists/{gist_id}", headers=headers, timeout=30)
-        
-        if response.ok:
-            content = response.json().get('files', {}).get('redeemed_codes.txt', {}).get('content', '')
+        # Look for the codes file in current directory first, then parent directory
+        codes_file = 'redeemed_codes.txt'
+        if not os.path.exists(codes_file):
+            codes_file = '../redeemed_codes.txt'
+            
+        if os.path.exists(codes_file):
+            with open(codes_file, 'r', encoding='utf-8') as f:
+                content = f.read()
             return [line.strip() for line in content.split('\n') if line.strip()]
-        
         return []
-    except:
+    except Exception as e:
+        print(f"Failed to read redeemed codes: {e}")
         return []
 
 
-def upload_redeemed_codes(new_codes: List[Dict[str, str]]) -> bool:
-    """Upload new redeemed codes to gist"""
+def save_redeemed_codes(new_codes: List[Dict[str, str]]) -> bool:
+    """Write new redeemed codes to file"""
     if not new_codes:
         return True
     
     try:
-        success, gist_id, token = get_env_vars()
-        if not success:
-            return False
-        
-        headers = {
-            'Authorization': f'token {token}',
-            'Content-Type': 'application/json'
-        }
-        
         # Get existing codes and combine
         existing_codes = get_existing_redeemed_codes()
         new_code_strings = [code_data['code'] for code_data in new_codes]
@@ -128,12 +108,16 @@ def upload_redeemed_codes(new_codes: List[Dict[str, str]]) -> bool:
                 unique_codes.append(code)
                 seen.add(code)
         
-        # Update gist
-        data = {"files": {"redeemed_codes.txt": {"content": '\n'.join(unique_codes)}}}
-        response = requests.patch(f"https://api.github.com/gists/{gist_id}", json=data, headers=headers, timeout=30)
+        # Write to parent directory (will be moved to logs branch by workflow)
+        codes_file = '../redeemed_codes.txt'
+        with open(codes_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(unique_codes))
         
-        return response.ok
-    except:
+        print(f"Redeemed codes written to {codes_file}")
+        return True
+        
+    except Exception as e:
+        print(f"Failed to write redeemed codes: {e}")
         return False
 
 
@@ -218,7 +202,7 @@ def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[Dict[s
 
 def main():
     try:
-        required_vars = ['UID', 'REGION', 'COOKIE', 'GIST_ID', 'GITHUB_TOKEN']
+        required_vars = ['UID', 'REGION', 'COOKIE']
         env_values = {var: os.getenv(var) for var in required_vars}
         missing = [k for k, v in env_values.items() if not v]
         
@@ -233,13 +217,9 @@ def main():
             return
 
         # Filter new codes
-        if all([env_values['GIST_ID'], env_values['GITHUB_TOKEN']]):
-            redeemed_codes = get_existing_redeemed_codes()
-            redeemed_codes_set = set(redeemed_codes)
-            new_codes_data = [code_data for code_data in all_codes_data if code_data['code'] not in redeemed_codes_set]
-        else:
-            redeemed_codes = []
-            new_codes_data = all_codes_data
+        redeemed_codes = get_existing_redeemed_codes()
+        redeemed_codes_set = set(redeemed_codes)
+        new_codes_data = [code_data for code_data in all_codes_data if code_data['code'] not in redeemed_codes_set]
 
         print(f"Found {len(all_codes_data)} total codes, {len(redeemed_codes)} already redeemed, {len(new_codes_data)} new")
         
@@ -256,13 +236,13 @@ def main():
 
         cacheable_codes = [code for code in new_codes_redeemed if code.get('cacheable', False)]
 
-        # Cache to gist
-        if cacheable_codes and all([env_values['GIST_ID'], env_values['GITHUB_TOKEN']]):
-            print(f"\nUploading {len(cacheable_codes)} redeemed codes to Gist...")
-            if upload_redeemed_codes(cacheable_codes):
-                print("Gist updated successfully")
+        # Cache to file (workflow handles git operations)
+        if cacheable_codes:
+            print(f"\nWriting {len(cacheable_codes)} redeemed codes to file...")
+            if save_redeemed_codes(cacheable_codes):
+                print("Codes file updated successfully")
             else:
-                print("Failed to update Gist")
+                print("Failed to update codes file")
         
         # Send Discord notification if webhook URL is available
         discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
@@ -292,7 +272,7 @@ def main():
                 cached_summary = ""
                 if cacheable_codes:
                     cached_codes_list = [code_data.get('code', 'Unknown') for code_data in cacheable_codes]
-                    cached_summary = f"\n\n**📂 Codes added to cache (Gist):**\n{', '.join(cached_codes_list)}"
+                    cached_summary = f"\n\n**📂 Codes added to cache (Repository - branch logs):**\n{', '.join(cached_codes_list)}"
                 
                 content = f"🎁 **Code Redemption Report**\n\n" \
                             f"**Summary:** {success_count}/{total_count} codes successful\n\n" \

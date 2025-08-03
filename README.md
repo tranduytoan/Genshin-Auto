@@ -14,6 +14,8 @@ Automated daily check-in and code redemption for Genshin Impact using GitHub Act
 
 ### 2. Configure Secrets
 
+> Read [GitHub Docs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) if you don't know how to do this.
+
 Add the following secrets in Settings > Secrets and variables > Actions:
 
 **Required:**
@@ -29,10 +31,8 @@ Add the following secrets in Settings > Secrets and variables > Actions:
    - **REMEMBER: DONT SHARE YOUR COOKIES WITH ANYONE!!!!**
 
 **Optional:**
-- `GIST_ID` - [GitHub Gist](https://gist.github.com/) ID for log storage (you will need to create one, learn how to create a gist and get the gist id)
-- `GIST_TOKEN` - Github Personal Access Token (See [docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic)): This token requires only a single scope: gist. Avoid selecting multiple scopes to maintain security. You can set the expiration time as needed—just note that once the token expires, you'll have to generate a new one and update the GIST_TOKEN secret accordingly.
 - `DISCORD_WEBHOOK_URL` - Discord webhook URL for notifications (If you don't know what this is, see: [Discord Webhooks](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks))
-> If you do not provide the optional secrets, the workflow will still function normally, but related features (such as logging to Gist or sending Discord notifications) will be skipped.
+> If you do not provide the optional secrets, the workflow will still function normally, but related features will be skipped.
 
 ### 3. Enable Actions
 
@@ -51,12 +51,13 @@ Navigate to Actions tab and enable workflows.
 - Check workflow status in Actions tab
 - View logs for debugging
 - Discord notifications (if configured)
-- Gist logs (if configured)
+- Repository logs (logs are stored in the `logs` branch of the repository)
 
 ## Troubleshooting
 
 - **Actions not running**: Verify workflows are enabled and secrets are configured
 - **Check-in failures**: Update expired cookies in secrets
 - **Code redemption issues**: Check logs for specific error codes and rate limiting
+- **Log access**: Logs are stored in the `logs` branch of your repository
 
 > Note: Typically, the six cookies used will have a validity of one year. In case of login or authentication errors, you should repeat the cookie retrieval steps and update the secrets with the new values.
