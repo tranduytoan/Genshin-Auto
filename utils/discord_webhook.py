@@ -1,30 +1,32 @@
 import os
-import requests
+from datetime import datetime
 from typing import Optional
+
+import requests
 from user_stats import get_user_stats
+
+try:
+    from constants import DISCORD_BOT_NAME, DISCORD_AVATAR_URL, GENSHIN_FAVICON_URL, LEVEL_COLORS, DEFAULT_COLOR
+except ImportError:
+    DISCORD_BOT_NAME = "Genshin Auto Bot"
+    DISCORD_AVATAR_URL = "https://genshin.hoyoverse.com/favicon.ico"
+    GENSHIN_FAVICON_URL = "https://genshin.hoyoverse.com/favicon.ico"
+    LEVEL_COLORS = {55: 0xFFD700, 45: 0x9932CC, 35: 0x4169E1, 25: 0x32CD32, 0: 0x808080}
+    DEFAULT_COLOR = 0x5865F2
 
 
 def send_discord_notification(content: str) -> bool:
-    """
-    Send notification to Discord webhook with user stats and content
-    
-    Args:
-        content (str): Main content message to send
-        
-    Returns:
-        bool: True if sent successfully, False otherwise
-    """
     webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
     
     if not webhook_url:
-        print("DISCORD_WEBHOOK_URL environment variable not found")
         return False
+        
     user_data = get_user_stats()
     message = _build_message(content, user_data)
     payload = {
         "content": message,
-        "username": "Genshin Auto Daily Bot",
-        "avatar_url": "https://i.imgur.com/AfFp7pu.png"
+        "username": DISCORD_BOT_NAME,
+        "avatar_url": DISCORD_AVATAR_URL
     }
     
     if user_data:
@@ -34,25 +36,13 @@ def send_discord_notification(content: str) -> bool:
     try:
         response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
-        print("Discord notification sent successfully")
         return True
         
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to send Discord notification: {e}")
+    except requests.exceptions.RequestException:
         return False
 
 
 def _build_message(content: str, user_data: Optional[dict]) -> str:
-    """
-    Build message content with user personalization
-    
-    Args:
-        content (str): Main content
-        user_data (dict): User stats data
-        
-    Returns:
-        str: Formatted message
-    """
     if not user_data:
         return f"**Genshin Impact Auto Daily**\n\n{content}"
     
@@ -63,40 +53,18 @@ def _build_message(content: str, user_data: Optional[dict]) -> str:
 
 
 def _create_embed(content: str, user_data: dict) -> dict:
-    """
-    Create Discord embed with user stats and content
-    
-    Args:
-        content (str): Main content
-        user_data (dict): User stats data
-        
-    Returns:
-        dict: Discord embed object
-    """
     nickname = user_data.get('nickname', 'Traveler')
     level = user_data.get('level', '?')
     region = user_data.get('region', '?')
-    game_head_icon = user_data.get('game_head_icon', 'https://genshin.hoyoverse.com/favicon.ico')
+    game_head_icon = user_data.get('game_head_icon', GENSHIN_FAVICON_URL)
     
-    if isinstance(level, int):
-        if level >= 55:
-            color = 0xFFD700  # Gold
-        elif level >= 45:
-            color = 0x9932CC  # Purple
-        elif level >= 35:
-            color = 0x4169E1  # Blue
-        elif level >= 25:
-            color = 0x32CD32  # Green
-        else:
-            color = 0x808080  # Gray
-    else:
-        color = 0x5865F2  # Discord blurple
+    color = _get_color_by_level(level)
     
     player_info = f"**Adventure Rank:** {level}"
     if region and region.strip():
         player_info += f"\n**Region:** {region}"
     
-    embed = {
+    return {
         "title": "Genshin Impact Auto Daily",
         "description": content,
         "color": color,
@@ -112,21 +80,16 @@ def _create_embed(content: str, user_data: dict) -> dict:
             }
         ],
         "footer": {
-            "text": "Genshin Auto Daily Bot",
-            "icon_url": "https://genshin.hoyoverse.com/favicon.ico"
+            "text": DISCORD_BOT_NAME,
+            "icon_url": GENSHIN_FAVICON_URL
         },
-        "timestamp": _get_current_timestamp()
+        "timestamp": datetime.utcnow().isoformat()
     }
-    
-    return embed
 
 
-def _get_current_timestamp() -> str:
-    """
-    Get current timestamp in ISO format for Discord embed
-    
-    Returns:
-        str: Current timestamp
-    """
-    from datetime import datetime
-    return datetime.utcnow().isoformat()
+def _get_color_by_level(level) -> int:
+    if isinstance(level, int):
+        for min_level in sorted(LEVEL_COLORS.keys(), reverse=True):
+            if level >= min_level:
+                return LEVEL_COLORS[min_level]
+    return DEFAULT_COLOR

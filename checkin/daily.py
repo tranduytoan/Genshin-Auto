@@ -1,22 +1,32 @@
-import requests
-import time
-import datetime
 import os
 import sys
+import time
+import datetime
+from typing import Tuple
+
+import requests
 from dotenv import load_dotenv
 
-# Add utils directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'utils'))
 try:
     from discord_webhook import send_discord_notification
+    from constants import CHECKIN_API_URL, DAILY_CHECKIN_ACT_ID, CHECKIN_SUCCESS_CODES, CHECKIN_HEADERS
 except ImportError:
     def send_discord_notification(content):
-        print(f"Discord webhook not available: {content}")
         return False
+    
+    CHECKIN_API_URL = "https://sg-hk4e-api.hoyolab.com/event/sol/sign"
+    DAILY_CHECKIN_ACT_ID = "e202102251931481"
+    CHECKIN_SUCCESS_CODES = {0, -5003}
+    CHECKIN_HEADERS = {
+        "Content-Type": "application/json;charset=UTF-8",
+        "Origin": "https://act.hoyolab.com",
+        "Referer": "https://act.hoyolab.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
 
 
-def checkin(url: str, payload: dict, headers: dict) -> tuple[bool, str]:
-    """Send check-in request"""
+def checkin(url: str, payload: dict, headers: dict) -> Tuple[bool, str, str]:
     time_now = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
     log_content = f"Request at: {time_now}\n"
     
@@ -29,84 +39,73 @@ def checkin(url: str, payload: dict, headers: dict) -> tuple[bool, str]:
         log_content += f"\tResponse: {response.text}"
         retcode = result.get('retcode', -1)
         
-        print(message)
-        print("Daily check-in completed successfully!")
-
-        if retcode != 0 and retcode != -5003:
-            return False, log_content, message
-        return True, log_content, message
+        success = retcode in CHECKIN_SUCCESS_CODES
+        return success, log_content, message
         
     except Exception as e:
         error_msg = str(e)
         log_content += f"\tError: {error_msg}"
-        print(f"Daily check-in failed: {error_msg}")
-        return False, log_content
+        return False, log_content, error_msg
+
+
+def write_log(log_content: str) -> None:
+    log_file = "../genshin-checkin.log"
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
+    header = f"\n{'='*50}\n[{timestamp}] New Check-in Session\n{'='*50}\n"
+    
+    try:
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                old_content = f.read()
+            with open(log_file, 'w', encoding='utf-8') as f:
+                f.write(header + log_content + "\n" + old_content)
+        else:
+            with open(log_file, 'w', encoding='utf-8') as f:
+                f.write(header + log_content)
+    except Exception as e:
+        print(f"Failed to write log file: {e}")
+
+
+def send_notification(success: bool, message: str) -> None:
+    webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
+    if not webhook_url:
+        return
+    
+    try:
+        if success:
+            content = "✅ **Daily Check-in Completed Successfully!**\n\nYour daily rewards have been claimed."
+        else:
+            content = f"❌ **Daily Check-in Failed**\n\nResponse: {message}"
+        
+        send_discord_notification(content)
+    except Exception as e:
+        print(f"Failed to send Discord notification: {e}")
+
+
+def validate_environment() -> Tuple[str]:
+    load_dotenv()
+    cookie = os.getenv('COOKIE')
+    
+    if not cookie:
+        raise ValueError("Missing required environment variable: COOKIE")
+    
+    return cookie
 
 
 def main():
     try:
-        api_url = "https://sg-hk4e-api.hoyolab.com/event/sol/sign"
+        cookie = validate_environment()
         
-        load_dotenv()
+        payload = {"act_id": DAILY_CHECKIN_ACT_ID}
+        headers = {**CHECKIN_HEADERS, "Cookie": cookie}
         
-        # Get environment variables
-        cookie = os.getenv('COOKIE')
-
-        act_id = "e202102251931481"  # activity ID for daily check-in
-
-        # Check required variables
-        if not all([act_id, cookie]):
-            print("Missing required environment variables: ACT_ID, COOKIE")
-            exit(1)
-
-        # Prepare API request
-        payload = {"act_id": act_id}
-        headers = {
-            "Content-Type": "application/json;charset=UTF-8",
-            "Cookie": cookie,
-            "Origin": "https://act.hoyolab.com",
-            "Referer": "https://act.hoyolab.com/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        }
+        success, log_content, message = checkin(CHECKIN_API_URL, payload, headers)
         
-        # Perform check-in
-        success, log_content, message = checkin(api_url, payload, headers)
-
-        # Write log to file (prepend new log to top) - save to parent directory for logs manager
-        log_file = "../genshin-checkin.log"
-        try:
-            new_log = log_content
-            if os.path.exists(log_file):
-                with open(log_file, 'r', encoding='utf-8') as f:
-                    old_content = f.read()
-                with open(log_file, 'w', encoding='utf-8') as f:
-                    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
-                    header = f"\n{'='*50}\n[{timestamp}] New Check-in Session\n{'='*50}\n"
-                    f.write(header + new_log + "\n" + old_content)
-            else:
-                with open(log_file, 'w', encoding='utf-8') as f:
-                    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
-                    header = f"{'='*50}\n[{timestamp}] New Check-in Session\n{'='*50}\n"
-                    f.write(header + new_log)
-            print(f"Log written to {log_file}")
-        except Exception as e:
-            print(f"Failed to write log file: {e}")
-        
-        # Send Discord notification if webhook URL is available
-        discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
-        if discord_webhook_url:
-            try:
-                if success:
-                    content = "✅ **Daily Check-in Completed Successfully!**\n\nYour daily rewards have been claimed."
-                else:
-                    content = f"❌ **Daily Check-in Failed**\n\nResponse: {message}"
-                
-                send_discord_notification(content)
-            except Exception as e:
-                print(f"Failed to send Discord notification: {e}")
+        write_log(log_content)
+        send_notification(success, message)
         
         exit(0 if success else 1)
-            
+        
     except Exception as e:
         print(f"Fatal error: {e}")
         exit(1)

@@ -1,32 +1,32 @@
 import os
 import re
-import time
-import requests
 import sys
-from typing import List, Dict, Any
+import time
+from typing import List, Dict, Any, Set
+
+import requests
 from bs4 import BeautifulSoup
 
-# Add utils directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'utils'))
 try:
     from discord_webhook import send_discord_notification
+    from constants import WIKI_URL, REDEEM_API_URL, RATE_LIMIT_CODE, REDEEM_SUCCESS_CODES, DEFAULT_HEADERS
 except ImportError:
     def send_discord_notification(content):
-        print(f"Discord webhook not available: {content}")
         return False
+    
+    WIKI_URL = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+    REDEEM_API_URL = "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey"
+    RATE_LIMIT_CODE = -2016
+    REDEEM_SUCCESS_CODES = {0, -2017, -1007, -2001}
+    DEFAULT_HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
 
 
 def scrape_genshin_codes() -> List[Dict[str, str]]:
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        
-        response = requests.get(
-            "https://genshin-impact.fandom.com/wiki/Promotional_Code", 
-            headers=headers, 
-            timeout=30
-        )
+        response = requests.get(WIKI_URL, headers=DEFAULT_HEADERS, timeout=30)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -43,25 +43,22 @@ def scrape_genshin_codes() -> List[Dict[str, str]]:
                     code_elem = cells[0].find('code')
                     if not code_elem:
                         continue
-                    code_text = code_elem.get_text(strip=True)
                     
-                    if not (code_text and len(code_text) >= 8 and code_text.replace(' ', '').isalnum()):
+                    code_text = code_elem.get_text(strip=True)
+                    if not _is_valid_code(code_text):
                         continue
+                    
                     server = cells[1].get_text(strip=True)
-                    rewards_elem = cells[2]
-                    rewards = []
-                    for item in rewards_elem.find_all(class_='item-text'):
-                        reward_text = item.get_text(strip=True)
-                        if reward_text:
-                            rewards.append(reward_text)
-                    rewards_str = ', '.join(rewards) if rewards else cells[2].get_text(strip=True)
+                    rewards = _extract_rewards(cells[2])
                     duration = cells[3].get_text(strip=True)
+                    
                     code_data = {
                         'code': code_text,
                         'server': server,
-                        'rewards': rewards_str,
+                        'rewards': rewards,
                         'duration': duration
                     }
+                    
                     if not any(existing['code'] == code_text for existing in codes_data):
                         codes_data.append(code_data)
         
@@ -72,9 +69,21 @@ def scrape_genshin_codes() -> List[Dict[str, str]]:
         return []
 
 
+def _is_valid_code(code_text: str) -> bool:
+    return bool(code_text and len(code_text) >= 8 and code_text.replace(' ', '').isalnum())
+
+
+def _extract_rewards(rewards_elem) -> str:
+    rewards = []
+    for item in rewards_elem.find_all(class_='item-text'):
+        reward_text = item.get_text(strip=True)
+        if reward_text:
+            rewards.append(reward_text)
+    return ', '.join(rewards) if rewards else rewards_elem.get_text(strip=True)
+
+
 def get_existing_redeemed_codes() -> List[str]:
     try:
-        # Look for the codes file in current directory first, then parent directory
         codes_file = 'redeemed_codes.txt'
         if not os.path.exists(codes_file):
             codes_file = '../redeemed_codes.txt'
@@ -90,17 +99,14 @@ def get_existing_redeemed_codes() -> List[str]:
 
 
 def save_redeemed_codes(new_codes: List[Dict[str, str]]) -> bool:
-    """Write new redeemed codes to file"""
     if not new_codes:
         return True
     
     try:
-        # Get existing codes and combine
         existing_codes = get_existing_redeemed_codes()
         new_code_strings = [code_data['code'] for code_data in new_codes]
         all_codes = new_code_strings + existing_codes
         
-        # Remove duplicates while preserving order
         unique_codes = []
         seen = set()
         for code in all_codes:
@@ -108,12 +114,10 @@ def save_redeemed_codes(new_codes: List[Dict[str, str]]) -> bool:
                 unique_codes.append(code)
                 seen.add(code)
         
-        # Write to parent directory (will be moved to logs branch by workflow)
         codes_file = '../redeemed_codes.txt'
         with open(codes_file, 'w', encoding='utf-8') as f:
             f.write('\n'.join(unique_codes))
         
-        print(f"Redeemed codes written to {codes_file}")
         return True
         
     except Exception as e:
@@ -122,11 +126,10 @@ def save_redeemed_codes(new_codes: List[Dict[str, str]]) -> bool:
 
 
 def redeem_code(session: requests.Session, uid: str, region: str, code: str) -> Dict[str, Any]:
-    """Redeem a single code with retry logic"""
     for attempt in range(4):
         try:
             response = session.get(
-                "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey",
+                REDEEM_API_URL,
                 params={
                     'lang': 'en', 'game_biz': 'hk4e_global', 'sLangKey': 'en-us',
                     'uid': uid, 'region': region, 'cdkey': code
@@ -137,13 +140,8 @@ def redeem_code(session: requests.Session, uid: str, region: str, code: str) -> 
             result = response.json() if response.ok else {'retcode': -1, 'message': 'Network error'}
             retcode = result.get('retcode', -1)
             
-            # Rate limit handling
-            if retcode == -2016 and attempt < 3:
-                wait_time = 5
-                if 'message' in result:
-                    match = re.search(r'try again in (\d+) second', result['message'])
-                    if match:
-                        wait_time = int(match.group(1)) + 1
+            if retcode == RATE_LIMIT_CODE and attempt < 3:
+                wait_time = _get_wait_time(result.get('message', ''))
                 time.sleep(wait_time)
                 continue
             
@@ -157,15 +155,16 @@ def redeem_code(session: requests.Session, uid: str, region: str, code: str) -> 
     return {'retcode': -1, 'message': 'Max retries exceeded'}
 
 
-def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[Dict[str, str]]) -> List[Dict[str, str]]:
-    """Redeem multiple codes and return status of all codes"""
-    session = requests.Session()
-    session.headers.update({
-        'Cookie': cookie,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    })
+def _get_wait_time(message: str) -> int:
+    match = re.search(r'try again in (\d+) second', message)
+    return int(match.group(1)) + 1 if match else 5
 
-    new_codes_redeemed: List[Dict[str, str]] = []
+
+def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    session = requests.Session()
+    session.headers.update({**DEFAULT_HEADERS, 'Cookie': cookie})
+
+    new_codes_redeemed = []
     for code_data in codes:
         try:
             code = code_data['code']
@@ -177,16 +176,13 @@ def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[Dict[s
                 'retcode': retcode,
                 'message': result.get('message', 'unknown'),
                 'success': retcode == 0,
-                'cacheable': retcode in [0, -2017, -1007, -2001]
+                'cacheable': retcode in REDEEM_SUCCESS_CODES
             })
             new_codes_redeemed.append(status_entry)
             
-            if retcode in [0, -2017, -1007, -2001]:
-                print(f"Code {code}: {result.get('message', 'processed')} | Rewards: {code_data['rewards'][:50]}...")
-            else:
-                print(f"Code {code} failed: {result.get('message', 'unknown error')}")
-            
+            _print_redemption_result(code, result, code_data)
             time.sleep(1)
+            
         except Exception as e:
             error_entry = code_data.copy()
             error_entry.update({
@@ -200,94 +196,109 @@ def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[Dict[s
 
     return new_codes_redeemed
 
+
+def _print_redemption_result(code: str, result: Dict[str, Any], code_data: Dict[str, str]) -> None:
+    retcode = result.get('retcode', -1)
+    message = result.get('message', 'processed')
+    rewards = code_data['rewards'][:50] + ('...' if len(code_data['rewards']) > 50 else '')
+    
+    if retcode in REDEEM_SUCCESS_CODES:
+        print(f"Code {code}: {message} | Rewards: {rewards}")
+    else:
+        print(f"Code {code} failed: {message}")
+
+def validate_environment() -> tuple[str, str, str]:
+    required_vars = ['UID', 'REGION', 'COOKIE']
+    env_values = {var: os.getenv(var) for var in required_vars}
+    missing = [k for k, v in env_values.items() if not v]
+    
+    if missing:
+        print(f"Missing environment variables: {', '.join(missing)}")
+        exit(1)
+    
+    return env_values['UID'], env_values['REGION'], env_values['COOKIE']
+
+
+def filter_new_codes(all_codes: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    redeemed_codes = get_existing_redeemed_codes()
+    redeemed_codes_set = set(redeemed_codes)
+    new_codes = [code_data for code_data in all_codes if code_data['code'] not in redeemed_codes_set]
+    
+    print(f"Found {len(all_codes)} total codes, {len(redeemed_codes)} already redeemed, {len(new_codes)} new")
+    return new_codes
+
+
+def send_discord_report(new_codes_redeemed: List[Dict[str, str]], cacheable_codes: List[Dict[str, str]]) -> None:
+    webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
+    if not webhook_url:
+        return
+    
+    try:
+        success_count = len([code for code in new_codes_redeemed if code.get('success', False)])
+        total_count = len(new_codes_redeemed)
+        
+        codes_detail = []
+        for code_data in new_codes_redeemed:
+            code = code_data.get('code', 'Unknown')
+            rewards = code_data.get('rewards', 'Unknown rewards')
+            
+            if code_data.get('success', False):
+                status = "✅ Success"
+            else:
+                retcode = code_data.get('retcode', -1)
+                message = code_data.get('message', 'Unknown error')
+                status = f"❌ {message} (retcode: {retcode})"
+            
+            codes_detail.append(f"**{code}**\n• Rewards: {rewards}\n• Status: {status}")
+        
+        codes_text = "\n\n".join(codes_detail)
+        
+        cached_summary = ""
+        if cacheable_codes:
+            cached_codes_list = [code_data.get('code', 'Unknown') for code_data in cacheable_codes]
+            cached_summary = f"\n\n**📂 Codes added to cache (Repository - branch logs):**\n{', '.join(cached_codes_list)}"
+        
+        content = (f"🎁 **Code Redemption Report**\n\n"
+                  f"**Summary:** {success_count}/{total_count} codes successful\n\n"
+                  f"**Code details:**\n{codes_text}{cached_summary}")
+        
+        send_discord_notification(content)
+    except Exception as e:
+        print(f"Failed to send Discord notification: {e}")
+
+
 def main():
     try:
-        required_vars = ['UID', 'REGION', 'COOKIE']
-        env_values = {var: os.getenv(var) for var in required_vars}
-        missing = [k for k, v in env_values.items() if not v]
-        
-        if missing:
-            print(f"Missing environment variables: {', '.join(missing)}")
-        if not all([env_values['COOKIE'], env_values['UID'], env_values['REGION']]):
-            exit(1)
+        uid, region, cookie = validate_environment()
 
         all_codes_data = scrape_genshin_codes()
         if not all_codes_data:
             print("No codes found")
             return
 
-        # Filter new codes
-        redeemed_codes = get_existing_redeemed_codes()
-        redeemed_codes_set = set(redeemed_codes)
-        new_codes_data = [code_data for code_data in all_codes_data if code_data['code'] not in redeemed_codes_set]
-
-        print(f"Found {len(all_codes_data)} total codes, {len(redeemed_codes)} already redeemed, {len(new_codes_data)} new")
-        
+        new_codes_data = filter_new_codes(all_codes_data)
         if not new_codes_data:
             print("No new codes to redeem")
             return
 
-        new_codes_redeemed = redeem_multiple_codes(
-            env_values['UID'], 
-            env_values['REGION'], 
-            env_values['COOKIE'], 
-            new_codes_data
-        )
-
+        new_codes_redeemed = redeem_multiple_codes(uid, region, cookie, new_codes_data)
         cacheable_codes = [code for code in new_codes_redeemed if code.get('cacheable', False)]
 
-        # Cache to file (workflow handles git operations)
         if cacheable_codes:
             print(f"\nWriting {len(cacheable_codes)} redeemed codes to file...")
             if save_redeemed_codes(cacheable_codes):
                 print("Codes file updated successfully")
             else:
                 print("Failed to update codes file")
-        
-        # Send Discord notification if webhook URL is available
-        discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
-        if discord_webhook_url:
-            try:
-                success_count = len([code for code in new_codes_redeemed if code.get('success', False)])
-                total_count = len(new_codes_data)
-                
-                # Create detailed code status summary
-                codes_detail = []
-                for code_data in new_codes_redeemed:
-                    code = code_data.get('code', 'Unknown')
-                    rewards = code_data.get('rewards', 'Unknown rewards')
-                    
-                    if code_data.get('success', False):
-                        status = "✅ Success"
-                    else:
-                        retcode = code_data.get('retcode', -1)
-                        message = code_data.get('message', 'Unknown error')
-                        status = f"❌ {message} (retcode: {retcode})"
-                    
-                    codes_detail.append(f"**{code}**\n• Rewards: {rewards}\n• Status: {status}")
-                
-                codes_text = "\n\n".join(codes_detail)
-                
-                # Create cached codes summary
-                cached_summary = ""
-                if cacheable_codes:
-                    cached_codes_list = [code_data.get('code', 'Unknown') for code_data in cacheable_codes]
-                    cached_summary = f"\n\n**📂 Codes added to cache (Repository - branch logs):**\n{', '.join(cached_codes_list)}"
-                
-                content = f"🎁 **Code Redemption Report**\n\n" \
-                            f"**Summary:** {success_count}/{total_count} codes successful\n\n" \
-                            f"**Code details:**\n{codes_text}{cached_summary}"
-                send_discord_notification(content)
-            except Exception as e:
-                print(f"Failed to send Discord notification: {e}")
-        
-        if not cacheable_codes:
+        else:
             print("No codes were successfully redeemed")
+        
+        send_discord_report(new_codes_redeemed, cacheable_codes)
 
     except Exception as e:
         print(f"Fatal error: {e}")
-        discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
-        if discord_webhook_url:
+        webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
+        if webhook_url:
             try:
                 send_discord_notification(f"⚠️⚠️⚠️ ERROR WHEN REDEEMING CODES: {e}")
             except Exception as e:
