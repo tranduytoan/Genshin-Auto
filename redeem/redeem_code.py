@@ -255,7 +255,7 @@ def main():
                 codes_detail = []
                 for code_data in new_codes_redeemed:
                     code = code_data.get('code', 'Unknown')
-                    rewards = code_data.get('rewards', 'Unknown rewards')[:50]
+                    rewards = code_data.get('rewards', 'Unknown rewards')
                     
                     if code_data.get('success', False):
                         status = "✅ Success"
