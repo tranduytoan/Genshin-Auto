@@ -1,0 +1,42 @@
+name: MimoTravel Auto Task
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  daily-auto-task:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository (main branch)
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run daily auto task
+      env:
+        UID: ${{ secrets.UID }}
+        REGION: ${{ secrets.REGION }}
+        COOKIE: ${{ secrets.COOKIE }}
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        cd mimotravel
+        python nata_autotask.py
