@@ -41,7 +41,7 @@ def finish_tasks(headers: dict, task_list: Optional[Dict]) -> List[Dict[str, Any
 
     tasks_to_finish: Optional[Dict] = []
     for task in task_list:
-        if task.get('status') != 1:
+        if task.get('status') == 2:
             tasks_to_finish.append(task)
     
     if not tasks_to_finish:
