@@ -267,6 +267,23 @@ def send_discord_report(new_codes_redeemed: List[Dict[str, str]], cacheable_code
         print(f"Failed to send Discord notification: {e}")
 
 
+def try_renew_cookie(uid, region, cookie) -> None:
+    print("Attempting to renew cookie...")
+
+    # Redeem a random code using the cookie to renew it
+    temp_check = redeem_multiple_codes(uid, region, cookie, [{'code': 'GENSHINGIFT', 'server': '', 'rewards': '', 'duration': ''}])
+    
+    # If retcode -1071 (cookie expired), notify via Discord
+    if temp_check and temp_check[0].get('retcode') == -1071:
+        content = (f"⚠️ **Hoyoverse cookie has expired or is invalid**\n"
+                   f"Tried to redeem a random code **{temp_check[0].get('code')}**\n"
+                   f" Got message: {temp_check[0].get('message')}"
+                   f" (retcode: {temp_check[0].get('retcode')}).\n")
+        send_discord_notification(content)
+        print("Cookie expired or invalid. Notification sent.")
+    return
+
+
 def main():
     try:
         uid, region, cookie = validate_environment()
@@ -274,11 +291,13 @@ def main():
         all_codes_data = scrape_genshin_codes()
         if not all_codes_data:
             print("No codes found")
+            try_renew_cookie(uid, region, cookie)
             return
 
         new_codes_data = filter_new_codes(all_codes_data)
         if not new_codes_data:
             print("No new codes to redeem")
+            try_renew_cookie(uid, region, cookie)
             return
 
         new_codes_redeemed = redeem_multiple_codes(uid, region, cookie, new_codes_data)
