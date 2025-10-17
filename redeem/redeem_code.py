@@ -40,33 +40,56 @@ def scrape_genshin_codes() -> List[Dict[str, str]]:
             for row in tbody.find_all('tr'):
                 cells = row.find_all('td')
                 if len(cells) >= 4:
-                    code_elem = cells[0].find('code')
-                    if not code_elem:
+                    code_elems = cells[0].find_all('code')
+                    if not code_elems:
                         continue
-                    
-                    code_text = code_elem.get_text(strip=True)
-                    if not _is_valid_code(code_text):
-                        continue
-                    
-                    server = cells[1].get_text(strip=True)
+
+                    server = _extract_server_names(cells[1])
                     rewards = _extract_rewards(cells[2])
                     duration = cells[3].get_text(strip=True)
                     
-                    code_data = {
-                        'code': code_text,
-                        'server': server,
-                        'rewards': rewards,
-                        'duration': duration
-                    }
-                    
-                    if not any(existing['code'] == code_text for existing in codes_data):
-                        codes_data.append(code_data)
+                    for code_elem in code_elems:
+                        code_text = code_elem.get_text(strip=True)
+                        if not _is_valid_code(code_text):
+                            continue
+                        
+                        code_data = {
+                            'code': code_text,
+                            'server': server,
+                            'rewards': rewards,
+                            'duration': duration
+                        }
+                        
+                        if not any(existing['code'] == code_text for existing in codes_data):
+                            codes_data.append(code_data)
         
         return codes_data
         
     except Exception as e:
         print(f"Error scraping codes: {e}")
         return []
+
+
+def _extract_server_names(cells: str) -> List[str]:
+    raw_server = cells.get_text(strip=True)
+    parts = re.split(r'[,&;]|\band\b', raw_server)
+    
+    server_mapping = {
+        'America': 'os_usa',
+        'Europe': 'os_euro',
+        'Asia': 'os_asia',
+        'TW/HK/Macao': 'os_cht',
+        'China': 'os_china'
+    }
+    
+    servers = []
+    for p in parts:
+        p_stripped = p.strip()
+        if p_stripped:
+            mapped_server = server_mapping.get(p_stripped, 'all')
+            servers.append(mapped_server)
+    
+    return servers
 
 
 def _is_valid_code(code_text: str) -> bool:
@@ -219,12 +242,25 @@ def validate_environment() -> tuple[str, str, str]:
     return env_values['UID'], env_values['REGION'], env_values['COOKIE']
 
 
-def filter_new_codes(all_codes: List[Dict[str, str]]) -> List[Dict[str, str]]:
+def filter_new_codes(all_codes: List[Dict[str, str]], region: str = None) -> List[Dict[str, str]]:
     redeemed_codes = get_existing_redeemed_codes()
     redeemed_codes_set = set(redeemed_codes)
     new_codes = [code_data for code_data in all_codes if code_data['code'] not in redeemed_codes_set]
+    already_redeemed_count = len(all_codes) - len(new_codes)
     
-    print(f"Found {len(all_codes)} total codes, {len(redeemed_codes)} already redeemed, {len(new_codes)} new")
+    if region:
+        filtered_codes = []
+        for code_data in new_codes:
+            servers = code_data.get('server', [])
+            if isinstance(servers, str):
+                servers = [servers]
+            if 'all' in servers or region in servers:
+                filtered_codes.append(code_data)
+        
+        print(f"Found {len(all_codes)} total codes, {already_redeemed_count} already redeemed, {len(new_codes)} new, {len(filtered_codes)} new match region '{region}'")
+        return filtered_codes
+    
+    print(f"Found {len(all_codes)} total codes, {already_redeemed_count} already redeemed, {len(new_codes)} new")
     return new_codes
 
 
@@ -294,7 +330,7 @@ def main():
             try_renew_cookie(uid, region, cookie)
             return
 
-        new_codes_data = filter_new_codes(all_codes_data)
+        new_codes_data = filter_new_codes(all_codes_data, region)
         if not new_codes_data:
             print("No new codes to redeem")
             try_renew_cookie(uid, region, cookie)

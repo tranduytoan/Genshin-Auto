@@ -3,6 +3,7 @@ log.txt
 .idea/
 venv/
 .env
+test/
 
 # Python
 __pycache__/
