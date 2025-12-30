@@ -8,12 +8,13 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'utils'))
 try:
     from discord_webhook import send_discord_notification
-    from constants import MIMO_LIST_TASKS_API_URL, MIMO_FINISH_TASK_API_URL, MIMO_RECEIVE_POINT_API_URL, DEFAULT_HEADERS
+    from constants import MIMO_LIST_TASKS_API_URL, MIMO_FINISH_TASK_API_URL, MIMO_RECEIVE_POINT_API_URL, DEFAULT_HEADERS, MIMO_VERSION_ID
 except ImportError:
     def send_discord_notification(content):
         return False
     
-    MIMO_LIST_TASKS_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/task_list?game_id=2&version_id=58"
+    MIMO_VERSION_ID = 58
+    MIMO_LIST_TASKS_API_URL = f"https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/task_list?game_id=2&version_id={MIMO_VERSION_ID}"
     MIMO_FINISH_TASK_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/finish_task"
     MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/receive_point"
     DEFAULT_HEADERS = {
@@ -63,7 +64,7 @@ def finish_tasks(headers: dict, task_list: Optional[Dict]) -> List[Dict[str, Any
         payload = {
             "task_id": task.get('task_id'),
             "game_id": 2,
-            "version_id": 58,
+            "version_id": MIMO_VERSION_ID,
             "lang": "en-us"
         }
         try:
@@ -88,7 +89,7 @@ def receive_point(headers: dict, finish_statuses: Optional[Dict]) -> List[Dict[s
     receive_statuses: List[Dict[str, Any]] = []
     payload = {
         "game_id": 2,
-        "version_id": 58,
+        "version_id": MIMO_VERSION_ID,
         "lang": "en-us"
     }
 

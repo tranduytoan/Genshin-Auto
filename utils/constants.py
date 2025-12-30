@@ -11,11 +11,13 @@ WIKI_URL = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
 # MIMO_FINISH_TASK_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/finish_task"
 # MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/receive_point"
 
+# Version IDs
+MIMO_VERSION_ID = 62
+
 # ver qiuqiu
-MIMO_LIST_TASKS_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/task_list?game_id=2&version_id=62"
+MIMO_LIST_TASKS_API_URL = f"https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/task_list?game_id=2&version_id={MIMO_VERSION_ID}"
 MIMO_FINISH_TASK_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/finish_task"
 MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/receive_point"
-
 
 # Activity IDs
 DAILY_CHECKIN_ACT_ID = "e202102251931481"
