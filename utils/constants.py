@@ -5,9 +5,17 @@ CHECKIN_API_URL = "https://sg-hk4e-api.hoyolab.com/event/sol/sign"
 REDEEM_API_URL = "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey"
 USER_STATS_API_URL = "https://bbs-api-os.hoyolab.com/game_record/genshin/api/index"
 WIKI_URL = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
-MIMO_LIST_TASKS_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/task_list?game_id=2&version_id=58"
-MIMO_FINISH_TASK_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/finish_task"
-MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/receive_point"
+
+# # ver natlan
+# MIMO_LIST_TASKS_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/task_list?game_id=2&version_id=58"
+# MIMO_FINISH_TASK_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/finish_task"
+# MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/receive_point"
+
+# ver qiuqiu
+MIMO_LIST_TASKS_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/task_list?game_id=2&version_id=62"
+MIMO_FINISH_TASK_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/finish_task"
+MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/receive_point"
+
 
 # Activity IDs
 DAILY_CHECKIN_ACT_ID = "e202102251931481"
