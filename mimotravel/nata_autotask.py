@@ -42,7 +42,11 @@ def finish_tasks(headers: dict, task_list: Optional[Dict]) -> List[Dict[str, Any
 
     tasks_to_finish: Optional[Dict] = []
     for task in task_list:
-        if task.get('status') == 2:
+        # task.status: 
+        # 1:completed but not received
+        # 2: not completed
+        # 3: received
+        if task.get('status') == 2:  
             tasks_to_finish.append(task)
     
     if not tasks_to_finish:
@@ -51,15 +55,16 @@ def finish_tasks(headers: dict, task_list: Optional[Dict]) -> List[Dict[str, Any
     finish_statuses: List[Dict[str, Any]] = []
 
     for task in tasks_to_finish:
-        status = "failed" if task.get('task_type') == 3 else None
-        if status:
-            finish_statuses.append({
-                "task_id": task.get('task_id'),
-                "task_name": task.get('task_name'),
-                "point": task.get('point'),
-                "finish_status": status
-            })
-            continue
+        status = None
+        # status = "failed" if task.get('task_type') == 3 else None
+        # if status:
+        #     finish_statuses.append({
+        #         "task_id": task.get('task_id'),
+        #         "task_name": task.get('task_name'),
+        #         "point": task.get('point'),
+        #         "finish_status": status
+        #     })
+        #     continue
 
         payload = {
             "task_id": task.get('task_id'),
@@ -117,6 +122,41 @@ def receive_point(headers: dict, finish_statuses: Optional[Dict]) -> List[Dict[s
     return receive_statuses
 
 
+def receive_completed_tasks(headers: dict, task_list: Optional[Dict]) -> List[Dict[str, Any]]:
+    if not task_list:
+        return []
+
+    tasks_to_receive = [task for task in task_list if task.get('status') == 1]
+    
+    if not tasks_to_receive:
+        return []
+
+    receive_statuses: List[Dict[str, Any]] = []
+    payload = {
+        "game_id": 2,
+        "version_id": MIMO_VERSION_ID,
+        "lang": "en-us"
+    }
+
+    for task in tasks_to_receive:
+        params = { "task_id": task["task_id"] }
+        try:
+            response = requests.post(MIMO_RECEIVE_POINT_API_URL, json=payload, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            receive_status = "success" if response.json().get("retcode") == 0 else "failed"
+        except Exception:
+            receive_status = "error"
+        
+        receive_statuses.append({
+            "task_id": task["task_id"],
+            "task_name": task["task_name"],
+            "point": task["point"],
+            "receive_status": receive_status
+        })
+
+    return receive_statuses
+
+
 def main():
     load_dotenv()
     headers = {
@@ -130,16 +170,25 @@ def main():
         return
 
     finish_statuses = finish_tasks(headers, task_list)
-    if not finish_statuses:
-        print("No tasks to finish or all tasks already completed.")
+    if finish_statuses:
+        print(f"Finished {len(finish_statuses)} tasks.")
+        for status in finish_statuses:
+            print(f"  - {status['task_name']}: {status['finish_status']}")
+
+    updated_task_list = get_list_tasks(headers)
+    if not updated_task_list:
+        print("Failed to retrieve updated task list.")
         return
 
-    receive_statuses = receive_point(headers, finish_statuses)
+    receive_statuses = receive_completed_tasks(headers, updated_task_list)
+    if not receive_statuses:
+        print("No completed tasks to receive points.")
+        return
+
     content = ""
     for status in receive_statuses:
-        print(f"Task: {status['task_name']}, Finish Status: {status['finish_status']}, Receive Status: {status.get('receive_status', 'N/A')}")
-        #discord noti
-        content += f"Task: {status['task_name']}, Finish Status: {status['finish_status']}, Receive Status: {status.get('receive_status', 'N/A')}\n"
+        print(f"Task: {status['task_name']}, Receive Status: {status.get('receive_status', 'N/A')}")
+        content += f"Task: {status['task_name']}, Receive Status: {status.get('receive_status', 'N/A')}\n"
     if content:
         send_discord_notification(content)
 

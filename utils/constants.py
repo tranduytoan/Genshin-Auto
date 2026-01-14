@@ -12,7 +12,7 @@ WIKI_URL = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
 # MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/receive_point"
 
 # Version IDs
-MIMO_VERSION_ID = 62
+MIMO_VERSION_ID = 63
 
 # ver qiuqiu
 MIMO_LIST_TASKS_API_URL = f"https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/task_list?game_id=2&version_id={MIMO_VERSION_ID}"

@@ -2,7 +2,7 @@ name: MimoTravel Auto Task
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 19,7 * * *'
   workflow_dispatch:
 
 jobs:

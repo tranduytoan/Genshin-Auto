@@ -3,7 +3,7 @@ name: Genshin Daily Redeem
 on:
   schedule:
     # Run every 12 hours at 00:00 and 12:00 UTC
-    - cron: '0 0,12 * * *'
+    - cron: '0 0,6,12,18 * * *'
   workflow_dispatch:
     # Allow manual trigger
 
