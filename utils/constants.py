@@ -5,6 +5,7 @@ CHECKIN_API_URL = "https://sg-hk4e-api.hoyolab.com/event/sol/sign"
 REDEEM_API_URL = "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey"
 USER_STATS_API_URL = "https://bbs-api-os.hoyolab.com/game_record/genshin/api/index"
 WIKI_URL = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+WIKI_API_URL = "https://genshin-impact.fandom.com/api.php?action=parse&page=Promotional_Code&prop=wikitext&format=json"
 
 # # ver natlan
 # MIMO_LIST_TASKS_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/task_list?game_id=2&version_id=58"
@@ -29,7 +30,15 @@ RATE_LIMIT_CODE = -2016
 
 # Headers
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
 }
 
 CHECKIN_HEADERS = {

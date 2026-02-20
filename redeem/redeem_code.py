@@ -5,22 +5,23 @@ import time
 from typing import List, Dict, Any, Set
 
 import requests
-from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'utils'))
 try:
     from discord_webhook import send_discord_notification
-    from constants import WIKI_URL, REDEEM_API_URL, RATE_LIMIT_CODE, REDEEM_SUCCESS_CODES, DEFAULT_HEADERS
+    from constants import WIKI_API_URL, REDEEM_API_URL, RATE_LIMIT_CODE, REDEEM_SUCCESS_CODES, DEFAULT_HEADERS
 except ImportError:
     def send_discord_notification(content):
         return False
-    
-    WIKI_URL = "https://genshin-impact.fandom.com/wiki/Promotional_Code"
+
+    WIKI_API_URL = "https://genshin-impact.fandom.com/api.php?action=parse&page=Promotional_Code&prop=wikitext&format=json"
     REDEEM_API_URL = "https://public-operation-hk4e.hoyoverse.com/common/apicdkey/api/webExchangeCdkey"
     RATE_LIMIT_CODE = -2016
     REDEEM_SUCCESS_CODES = {0, -2017, -1007, -2001}
     DEFAULT_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
 
@@ -30,83 +31,84 @@ class CookieExpiredError(Exception):
 
 def scrape_genshin_codes() -> List[Dict[str, str]]:
     try:
-        response = requests.get(WIKI_URL, headers=DEFAULT_HEADERS, timeout=30)
+        response = requests.get(WIKI_API_URL, headers=DEFAULT_HEADERS, timeout=30)
         response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        codes_data = []
-        
-        for table in soup.select('#mw-content-text > div > table'):
-            tbody = table.find('tbody')
-            if not tbody:
-                continue
-                
-            for row in tbody.find_all('tr'):
-                cells = row.find_all('td')
-                if len(cells) >= 4:
-                    code_elems = cells[0].find_all('code')
-                    if not code_elems:
-                        continue
 
-                    server = _extract_server_names(cells[1])
-                    rewards = _extract_rewards(cells[2])
-                    duration = cells[3].get_text(strip=True)
-                    
-                    for code_elem in code_elems:
-                        code_text = code_elem.get_text(strip=True)
-                        if not _is_valid_code(code_text):
-                            continue
-                        
-                        code_data = {
-                            'code': code_text,
-                            'server': server,
-                            'rewards': rewards,
-                            'duration': duration
-                        }
-                        
-                        if not any(existing['code'] == code_text for existing in codes_data):
-                            codes_data.append(code_data)
-        
+        wikitext = response.json()['parse']['wikitext']['*']
+
+        active_start = wikitext.find('==Active Codes==')
+        inactive_start = wikitext.find('==Inactive Codes==')
+        if active_start == -1:
+            return []
+        end_idx = inactive_start if inactive_start != -1 else len(wikitext)
+        active_section = wikitext[active_start:end_idx]
+
+        clean_section = re.sub(r'<!--.*?-->', '', active_section, flags=re.DOTALL)
+
+        codes_data = []
+        code_row_pattern = re.compile(r'\{\{Code Row(?!/)(.*?)\}\}', re.DOTALL)
+
+        for match in code_row_pattern.finditer(clean_section):
+            block = match.group(1)
+
+            if 'notacode=yes' in block:
+                continue
+
+            params = [p.strip() for p in block.split('|') if p.strip()]
+            positional = [p for p in params if not re.match(r'^[a-zA-Z_]+=', p)]
+
+            if len(positional) < 3:
+                continue
+
+            code_text = positional[0]
+            server_raw = positional[1]
+            rewards = re.sub(r'\s+', ' ', positional[2]).strip()
+            duration = positional[4] if len(positional) > 4 else 'unknown'
+
+            if not _is_valid_code(code_text):
+                continue
+
+            servers = _extract_server_names(server_raw)
+
+            if not any(existing['code'] == code_text for existing in codes_data):
+                codes_data.append({
+                    'code': code_text,
+                    'server': servers,
+                    'rewards': rewards,
+                    'duration': duration
+                })
+
         return codes_data
-        
+
     except Exception as e:
         print(f"Error scraping codes: {e}")
         raise
 
 
-def _extract_server_names(cells: str) -> List[str]:
-    raw_server = cells.get_text(strip=True)
-    parts = re.split(r'[,&;]|\band\b', raw_server)
-    
-    server_mapping = {
-        'America': 'os_usa',
-        'Europe': 'os_euro',
-        'Asia': 'os_asia',
-        'TW/HK/Macao': 'os_cht',
-        'China': 'os_china'
-    }
-    
+_WIKI_SERVER_MAPPING = {
+    'G': ['os_usa', 'os_euro', 'os_asia', 'os_cht'],
+    'A': ['os_usa', 'os_euro', 'os_asia', 'os_cht', 'os_china'],
+    'NA': ['os_usa'],
+    'EU': ['os_euro'],
+    'SEA': ['os_asia'],
+    'SAR': ['os_cht'],
+    'CN': ['os_china'],
+}
+
+
+def _extract_server_names(server_raw: str) -> List[str]:
+    parts = re.split(r'[;,]', server_raw.strip().upper())
     servers = []
-    for p in parts:
-        p_stripped = p.strip()
-        if p_stripped:
-            mapped_server = server_mapping.get(p_stripped, 'all')
-            servers.append(mapped_server)
-    
-    return servers
+    for part in parts:
+        mapped = _WIKI_SERVER_MAPPING.get(part.strip(), [])
+        for s in mapped:
+            if s not in servers:
+                servers.append(s)
+    return servers if servers else ['os_usa', 'os_euro', 'os_asia', 'os_cht']
 
 
 def _is_valid_code(code_text: str) -> bool:
     return bool(code_text and len(code_text) >= 8 and code_text.replace(' ', '').isalnum())
-
-
-def _extract_rewards(rewards_elem) -> str:
-    rewards = []
-    for item in rewards_elem.find_all(class_='item-text'):
-        reward_text = item.get_text(strip=True)
-        if reward_text:
-            rewards.append(reward_text)
-    return ', '.join(rewards) if rewards else rewards_elem.get_text(strip=True)
 
 
 def get_existing_redeemed_codes() -> List[str]:
