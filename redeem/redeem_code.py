@@ -67,7 +67,7 @@ def scrape_genshin_codes() -> List[Dict[str, str]]:
         
     except Exception as e:
         print(f"Error scraping codes: {e}")
-        return []
+        raise
 
 
 def _extract_server_names(cells: str) -> List[str]:
