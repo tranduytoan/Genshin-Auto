@@ -24,6 +24,10 @@ except ImportError:
     }
 
 
+class CookieExpiredError(Exception):
+    pass
+
+
 def scrape_genshin_codes() -> List[Dict[str, str]]:
     try:
         response = requests.get(WIKI_URL, headers=DEFAULT_HEADERS, timeout=30)
@@ -162,7 +166,10 @@ def redeem_code(session: requests.Session, uid: str, region: str, code: str) -> 
             
             result = response.json() if response.ok else {'retcode': -1, 'message': 'Network error'}
             retcode = result.get('retcode', -1)
-            
+
+            if retcode == -1071:
+                raise CookieExpiredError(result.get('message', 'Cookie expired or invalid'))
+
             if retcode == RATE_LIMIT_CODE and attempt < 3:
                 wait_time = _get_wait_time(result.get('message', ''))
                 time.sleep(wait_time)
@@ -193,7 +200,7 @@ def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[Dict[s
             code = code_data['code']
             result = redeem_code(session, uid, region, code)
             retcode = result.get('retcode', -1)
-            
+
             status_entry = code_data.copy()
             status_entry.update({
                 'retcode': retcode,
@@ -202,10 +209,11 @@ def redeem_multiple_codes(uid: str, region: str, cookie: str, codes: List[Dict[s
                 'cacheable': retcode in REDEEM_SUCCESS_CODES
             })
             new_codes_redeemed.append(status_entry)
-            
+
             _print_redemption_result(code, result, code_data)
             time.sleep(1)
-            
+        except CookieExpiredError:
+            raise
         except Exception as e:
             error_entry = code_data.copy()
             error_entry.update({
@@ -305,19 +313,15 @@ def send_discord_report(new_codes_redeemed: List[Dict[str, str]], cacheable_code
 
 def try_renew_cookie(uid, region, cookie) -> None:
     print("Attempting to renew cookie...")
-
-    # Redeem a random code using the cookie to renew it
-    temp_check = redeem_multiple_codes(uid, region, cookie, [{'code': 'GENSHINGIFT', 'server': '', 'rewards': '', 'duration': ''}])
-    
-    # If retcode -1071 (cookie expired), notify via Discord
-    if temp_check and temp_check[0].get('retcode') == -1071:
+    try:
+        redeem_multiple_codes(uid, region, cookie, [{'code': 'GENSHINGIFT', 'server': '', 'rewards': '', 'duration': ''}])
+    except CookieExpiredError as e:
         content = (f"⚠️ **Hoyoverse cookie has expired or is invalid**\n"
-                   f"Tried to redeem a random code **{temp_check[0].get('code')}**\n"
-                   f" Got message: {temp_check[0].get('message')}"
-                   f" (retcode: {temp_check[0].get('retcode')}).\n")
+                   f"Tried to redeem a random code **GENSHINGIFT**\n"
+                   f" Got message: {e}\n")
         send_discord_notification(content)
         print("Cookie expired or invalid. Notification sent.")
-    return
+        sys.exit(1)
 
 
 def main():
