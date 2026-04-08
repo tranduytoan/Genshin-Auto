@@ -13,7 +13,7 @@ WIKI_API_URL = "https://genshin-impact.fandom.com/api.php?action=parse&page=Prom
 # MIMO_RECEIVE_POINT_API_URL = "https://sg-public-api.hoyolab.com/event/e2023mimotravel/nata/receive_point"
 
 # Version IDs
-MIMO_VERSION_ID = 63
+MIMO_VERSION_ID = 65
 
 # ver qiuqiu
 MIMO_LIST_TASKS_API_URL = f"https://sg-public-api.hoyolab.com/event/e2023mimotravel/qiuqiu/task_list?game_id=2&version_id={MIMO_VERSION_ID}"
