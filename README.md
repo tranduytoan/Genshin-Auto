@@ -44,6 +44,11 @@ Add the following secrets in Settings > Secrets and variables > Actions > New re
 
 > Note: Typically, the six cookies used will have a validity of one year. In case of login or authentication errors, you should repeat the cookie retrieval steps and update the secrets with the new values.
 
+### 3. Configure Variables (Optional)
+Add the following variables in Settings > Secrets and variables > Actions > Variables:
+
+- `MIMO_VERSION_ID` - Version id for the MimoTravel event used by the `daily-mimotravel` action. If not set, the workflow falls back to the value in `utils/constants.py`.
+
 ## Configuration Details
 
 ### Region Mapping

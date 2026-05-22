@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import List, Dict, Any, Optional, Set
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 import requests
 from dotenv import load_dotenv
@@ -20,6 +21,27 @@ except ImportError:
     DEFAULT_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
+
+def resolve_mimo_version_id(default_value: int) -> int:
+    raw_value = os.getenv("MIMO_VERSION_ID")
+    if not raw_value:
+        return default_value
+    try:
+        return int(raw_value)
+    except ValueError:
+        return default_value
+
+
+def with_version_id(url: str, version_id: int) -> str:
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    query["version_id"] = [str(version_id)]
+    new_query = urlencode(query, doseq=True)
+    return urlunparse(parsed._replace(query=new_query))
+
+
+MIMO_VERSION_ID = resolve_mimo_version_id(MIMO_VERSION_ID)
+MIMO_LIST_TASKS_API_URL = with_version_id(MIMO_LIST_TASKS_API_URL, MIMO_VERSION_ID)
 
 def get_list_tasks(headers: dict) -> Optional[Dict]:    
     try:

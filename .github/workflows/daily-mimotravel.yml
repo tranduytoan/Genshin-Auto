@@ -37,6 +37,7 @@ jobs:
         REGION: ${{ secrets.REGION }}
         COOKIE: ${{ secrets.COOKIE }}
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        MIMO_VERSION_ID: ${{ vars.MIMO_VERSION_ID }}
       run: |
         cd mimotravel
         python nata_autotask.py
